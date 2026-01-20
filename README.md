@@ -1558,7 +1558,7 @@ This project is licensed under the **MIT License**.
 
 ⚠️ **Do not create a public issue for security vulnerabilities**
 
-Email: security@patientmanagementsystem.com with:
+Email: dev.kumarharshraj@gmail.com with:
 - Description of vulnerability
 - Steps to reproduce
 - Potential impact
