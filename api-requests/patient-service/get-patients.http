@@ -1,0 +1,4 @@
+### Fetches All the Patients in the DB
+GET http://localhost:4004/api/patients
+Authorization: Bearer {{token}}
+###

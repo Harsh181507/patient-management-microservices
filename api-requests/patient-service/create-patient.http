@@ -1,0 +1,13 @@
+### Creates a New Patient Entity
+POST http://localhost:4000/patients
+Content-Type: application/json
+
+{
+  "name" : "Harsh with Billing with api gateway",
+  "email": "testAnalytics@example.com",
+  "address": "Gomia,Jharkhand",
+  "dateOfBirth": "1995-09-09",
+  "registeredDate": "2024-11-28"
+}
+
+###
