@@ -1551,7 +1551,7 @@ This project is licensed under the **MIT License**.
 |---------|---------|
 | **GitHub Issues** | Bug reports & feature requests |
 | **GitHub Discussions** | Questions & community help |
-| **Email** | security@patientmanagementsystem.com |
+| **Email** | dev.kumarharshraj@gmail.com|
 | **Wiki** | FAQs & detailed guides |
 
 ### Report a Security Issue
@@ -1574,12 +1574,12 @@ Email: security@patientmanagementsystem.com with:
 
 <div align="center">
 
-### Made with ❤️ by the Patient Management Team
+### Made with ❤️ by the Patient Management Microservices Team
 
-[![Stars](https://img.shields.io/github/stars/yourusername/patient-management?style=social)](https://github.com/yourusername/patient-management)
-[![Forks](https://img.shields.io/github/forks/yourusername/patient-management?style=social)](https://github.com/yourusername/patient-management)
-[![Issues](https://img.shields.io/github/issues/yourusername/patient-management?style=social)](https://github.com/yourusername/patient-management/issues)
+[![Stars](https://img.shields.io/github/stars/Harsh181507/patient-management-microservices?style=social)](https://github.com/Harsh181507/patient-management-microservices)
+[![Forks](https://img.shields.io/github/forks/Harsh181507/patient-management-microservices?style=social)](https://github.com/Harsh181507/patient-management-microservices)
+[![Issues](https://img.shields.io/github/issues/Harsh181507/patient-management-microservices?style=social)](https://github.com/Harsh181507/patient-management-microservices/issues)
 
-**[⬆ back to top](#-patient-management-system)**
+**[⬆ back to top](#-patient-management-microservices)**
 
 </div>
