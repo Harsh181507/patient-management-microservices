@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patient Management</title>
+<style>
+  :root { --bg:#f4f6fb; --card:#fff; --ink:#1c2333; --muted:#667085; --line:#e3e7ef; --accent:#2f6fed; --danger:#d23b3b; --ok:#178a4c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--ink); color:#fff; padding:14px 24px; display:flex; align-items:center; gap:16px; }
+  header h1 { font-size:18px; margin:0; flex:1; }
+  header .who { font-size:13px; opacity:.8; }
+  main { max-width:1100px; margin:24px auto; padding:0 16px; display:grid; gap:20px; grid-template-columns: 1fr 340px; }
+  @media (max-width: 860px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  h2 { font-size:16px; margin:0 0 12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  button { font:inherit; padding:8px 14px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); }
+  button.danger { border-color:var(--danger); background:transparent; color:var(--danger); }
+  button.small { padding:4px 10px; font-size:13px; }
+  .row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:9px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  .msg { margin-top:12px; font-size:13px; white-space:pre-wrap; }
+  .msg.err { color:var(--danger); } .msg.ok { color:var(--ok); }
+  .hidden { display:none !important; }
+  #login { max-width:380px; margin:60px auto; }
+  .explain ol { padding-left:18px; margin:0; } .explain li { margin-bottom:8px; }
+  .explain code { background:#eef2f9; padding:1px 4px; border-radius:4px; font-size:12px; }
+  #log { font:12px/1.4 ui-monospace, Consolas, monospace; background:#0f1524; color:#cfe1ff; border-radius:8px; padding:10px; max-height:220px; overflow:auto; margin-top:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏥 Patient Management</h1>
+  <span class="who" id="who"></span>
+  <button class="ghost small hidden" id="logoutBtn" style="color:#fff;border-color:#fff">Log out</button>
+</header>
+
+<!-- LOGIN -->
+<section id="login" class="card">
+  <h2>Sign in</h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:0">Seeded account: <b>testuser@test.com</b> / <b>password123</b></p>
+  <form id="loginForm">
+    <label>Email</label><input name="email" type="email" value="testuser@test.com" required>
+    <label>Password</label><input name="password" type="password" value="password123" required>
+    <div class="row"><button>Log in</button></div>
+  </form>
+  <div class="msg" id="loginMsg"></div>
+</section>
+
+<!-- APP -->
+<main id="app" class="hidden">
+  <div style="display:grid;gap:20px">
+    <section class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h2>Patients</h2><button class="ghost small" id="refreshBtn">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Address</th><th>Date of birth</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2 id="formTitle">Add patient</h2>
+      <form id="patientForm">
+        <input type="hidden" name="id">
+        <label>Name</label><input name="name" required maxlength="100">
+        <label>Email</label><input name="email" type="email" required>
+        <label>Address</label><input name="address" required>
+        <label>Date of birth</label><input name="dateOfBirth" type="date" required>
+        <div id="regWrap"><label>Registered date</label><input name="registeredDate" type="date"></div>
+        <div class="row">
+          <button id="saveBtn">Create patient</button>
+          <button type="button" class="ghost hidden" id="cancelEdit">Cancel edit</button>
+        </div>
+      </form>
+      <div class="msg" id="formMsg"></div>
+    </section>
+  </div>
+
+  <aside class="card explain">
+    <h2>What happens behind the scenes</h2>
+    <ol>
+      <li><b>Login</b> → <code>POST :4004/auth/login</code>. The <b>API Gateway</b> forwards to <b>auth-service</b>, which checks the BCrypt password in its Postgres DB and returns a signed <b>JWT</b>.</li>
+      <li><b>Every patient call</b> carries <code>Authorization: Bearer &lt;jwt&gt;</code>. The gateway's <code>JwtValidation</code> filter asks auth-service <code>/validate</code> first; a bad token gets <b>401</b>.</li>
+      <li><b>patient-service</b> (Spring Boot + Postgres) handles CRUD at <code>/api/patients</code>.</li>
+      <li><b>Creating</b> a patient also calls <b>billing-service over gRPC</b> (port 9001) to open a billing account…</li>
+      <li>…and publishes a <b>Protobuf event to Kafka</b> topic <code>patient</code>, consumed by <b>analytics-service</b> (see its logs).</li>
+    </ol>
+    <h2 style="margin-top:16px">Request log</h2>
+    <div id="log"></div>
+  </aside>
+</main>
+
+<script>
+  // All calls go to the API Gateway. Under Docker, nginx proxies /auth and /api to it on the same origin.
+  // Opening this file directly falls back to the gateway on :4004; override with ?api=http://host:port.
+  const API = new URLSearchParams(location.search).get('api')
+    || (location.protocol === 'file:' ? 'http://localhost:4004' : '');
+  const $ = s => document.querySelector(s);
+  let token = sessionStorage.getItem('jwt');
+
+  function log(line) { const el = $('#log'); el.textContent = `${new Date().toLocaleTimeString()}  ${line}\n` + el.textContent; }
+
+  async function api(method, path, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    let res;
+    try {
+      res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    } catch (e) {
+      log(`${method} ${path} → network error`);
+      throw new Error(`Cannot reach the API Gateway at ${API}. Is the backend running?`);
+    }
+    log(`${method} ${path} → ${res.status}`);
+    if (res.status === 401 && path !== '/auth/login') { logout(); throw new Error('Session expired — please log in again.'); }
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!res.ok) throw new Error(data ? Object.values(data).join('\n') : `Request failed (${res.status})`);
+    return data;
+  }
+
+  function show(el, text, ok) { el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+  function render() {
+    const loggedIn = !!token;
+    $('#login').classList.toggle('hidden', loggedIn);
+    $('#app').classList.toggle('hidden', !loggedIn);
+    $('#logoutBtn').classList.toggle('hidden', !loggedIn);
+    $('#who').textContent = loggedIn ? JSON.parse(atob(token.split('.')[1])).sub : '';
+    if (loggedIn) loadPatients();
+  }
+
+  function logout() { token = null; sessionStorage.removeItem('jwt'); render(); }
+
+  $('#loginForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    try {
+      const data = await api('POST', '/auth/login', { email: f.get('email'), password: f.get('password') });
+      token = data.token; sessionStorage.setItem('jwt', token); $('#loginMsg').textContent = ''; render();
+    } catch (err) { show($('#loginMsg'), err.message.includes('reach') ? err.message : 'Invalid email or password.'); }
+  };
+  $('#logoutBtn').onclick = logout;
+  $('#refreshBtn').onclick = () => loadPatients();
+
+  async function loadPatients() {
+    try {
+      const patients = await api('GET', '/api/patients');
+      const tbody = $('#rows'); tbody.innerHTML = '';
+      for (const p of patients) {
+        const tr = document.createElement('tr');
+        for (const v of [p.name, p.email, p.address, p.dateOfBirth]) { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }
+        const td = document.createElement('td'); td.style.whiteSpace = 'nowrap';
+        const edit = Object.assign(document.createElement('button'), { className: 'ghost small', textContent: 'Edit', onclick: () => startEdit(p) });
+        const del = Object.assign(document.createElement('button'), { className: 'danger small', textContent: 'Delete', onclick: () => remove(p) });
+        del.style.marginLeft = '6px'; td.append(edit, del); tr.appendChild(td); tbody.appendChild(tr);
+      }
+      if (!patients.length) tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No patients yet.</td></tr>';
+    } catch (err) { show($('#formMsg'), err.message); }
+  }
+
+  function startEdit(p) {
+    const f = $('#patientForm');
+    f.id.value = p.id; f.name.value = p.name; f.email.value = p.email; f.address.value = p.address; f.dateOfBirth.value = p.dateOfBirth;
+    $('#regWrap').classList.add('hidden'); $('#cancelEdit').classList.remove('hidden');
+    $('#formTitle').textContent = 'Edit patient'; $('#saveBtn').textContent = 'Save changes';
+    f.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    const f = $('#patientForm'); f.reset(); f.id.value = '';
+    f.registeredDate.value = new Date().toISOString().slice(0, 10);
+    $('#regWrap').classList.remove('hidden'); $('#cancelEdit').classList.add('hidden');
+    $('#formTitle').textContent = 'Add patient'; $('#saveBtn').textContent = 'Create patient';
+  }
+  $('#cancelEdit').onclick = resetForm;
+
+  $('#patientForm').onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const { id, ...body } = f;
+    try {
+      if (id) { delete body.registeredDate; await api('PUT', `/api/patients/${id}`, body); show($('#formMsg'), 'Patient updated.', true); }
+      else { await api('POST', '/api/patients', body); show($('#formMsg'), 'Patient created — billing account opened via gRPC and Kafka event sent.', true); }
+      resetForm(); loadPatients();
+    } catch (err) { show($('#formMsg'), err.message); }
+  };
+
+  async function remove(p) {
+    if (!confirm(`Delete ${p.name}?`)) return;
+    try { await api('DELETE', `/api/patients/${p.id}`); show($('#formMsg'), 'Patient deleted.', true); loadPatients(); }
+    catch (err) { show($('#formMsg'), err.message); }
+  }
+
+  resetForm();
+  render();
+</script>
+</body>
+</html>

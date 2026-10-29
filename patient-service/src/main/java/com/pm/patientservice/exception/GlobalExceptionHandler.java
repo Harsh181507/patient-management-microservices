@@ -6,6 +6,7 @@ import com.pm.patientservice.dto.PatientResponseDTO;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,7 @@ public class GlobalExceptionHandler {
 
         Map<String,String> errors = new HashMap<>();
 
-        ex.getBindingResult().getAllErrors().forEach(error->errors.put(error.getObjectName(),error.getDefaultMessage()));
+        ex.getBindingResult().getAllErrors().forEach(error->errors.put(error instanceof org.springframework.validation.FieldError fe ? fe.getField() : error.getObjectName(), error.getDefaultMessage()));
         return ResponseEntity.badRequest().body(errors);
     }
 
@@ -42,7 +43,7 @@ public class GlobalExceptionHandler {
         log.warn("Patient Not Found {}", ex.getMessage());
         Map<String,String> errors = new HashMap<>();
         errors.put("message","Patient Not Found");
-        return ResponseEntity.badRequest().body(errors);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).body(errors);
     }
 
 

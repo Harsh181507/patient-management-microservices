@@ -1,0 +1,99 @@
+# Runs the whole stack locally: 2 Postgres DBs, Kafka, 5 microservices and the web frontend.
+# Usage:  docker compose up --build      then open http://localhost:3000
+services:
+  auth-service-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: admin_user
+      POSTGRES_PASSWORD: password
+    ports: ["5001:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_user -d db"]
+      interval: 5s
+      retries: 20
+
+  patient-service-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: admin_user
+      POSTGRES_PASSWORD: password
+    ports: ["5000:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_user -d db"]
+      interval: 5s
+      retries: 20
+
+  kafka:
+    image: apache/kafka:3.8.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports: ["9094:9094"]
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      JWT_SECRET: Y2hhVEc3aHJnb0hYTzMyZ2ZqVkpiZ1RkZG93YWxrUkM=
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-service-db:5432/db
+      SPRING_DATASOURCE_USERNAME: admin_user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+    depends_on:
+      auth-service-db: { condition: service_healthy }
+    ports: ["4005:4005"]
+
+  billing-service:
+    build: ./billing-service
+    ports: ["4001:4001", "9001:9001"]
+
+  analytics-service:
+    build: ./analytics-service
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [kafka]
+    restart: on-failure
+    ports: ["4002:4002"]
+
+  patient-service:
+    build: ./patient-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patient-service-db:5432/db
+      SPRING_DATASOURCE_USERNAME: admin_user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      BILLING_SERVICE_ADDRESS: billing-service
+      BILLING_SERVICE_GRPC_PORT: 9001
+    depends_on:
+      patient-service-db: { condition: service_healthy }
+      kafka: { condition: service_started }
+      billing-service: { condition: service_started }
+    restart: on-failure
+    ports: ["4000:4000"]
+
+  api-gateway:
+    build: ./api-gateway
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:4005
+    depends_on: [auth-service, patient-service]
+    ports: ["4004:4004"]
+
+  frontend:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [api-gateway]
+    ports: ["3000:80"]

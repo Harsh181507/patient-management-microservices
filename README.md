@@ -512,6 +512,28 @@ OUTPUT (JSON to Client)
 
 ## 🚀 Getting Started
 
+### ⚡ Quick Start (Docker + Web UI)
+
+With Docker Desktop running, from the repo root:
+
+```bash
+docker compose up --build
+```
+
+Then open **http://localhost:3000** and log in with `testuser@test.com` / `password123`.
+
+| Container | Port | Role |
+|-----------|------|------|
+| `frontend` (nginx) | 3000 | Web UI in [`frontend/index.html`](frontend/index.html); proxies `/auth` and `/api` to the gateway ([`frontend/nginx.conf`](frontend/nginx.conf)) |
+| `api-gateway` | 4004 | Single entry point; validates JWTs for `/api/patients/**` |
+| `auth-service` + `auth-service-db` | 4005 / 5001 | Login, JWT issue and validation |
+| `patient-service` + `patient-service-db` | 4000 / 5000 | Patient CRUD |
+| `billing-service` | 4001 / 9001 (gRPC) | Called by patient-service when a patient is created |
+| `kafka` | 9092 (internal) / 9094 | Carries `patient` events |
+| `analytics-service` | 4002 | Consumes Kafka events (`docker compose logs -f analytics-service`) |
+
+The UI only talks to the gateway. Its side panel shows each request and explains the flow: login → JWT → gateway validation → patient-service → gRPC to billing → Kafka event to analytics.
+
 ### ✅ Prerequisites
 
 Before you begin, ensure you have the following installed:
