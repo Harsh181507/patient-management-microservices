@@ -7,6 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
 public class JwtValidationGatewayFilterFactory extends
@@ -35,7 +36,12 @@ public class JwtValidationGatewayFilterFactory extends
                     .header(HttpHeaders.AUTHORIZATION, token)
                     .retrieve()
                     .toBodilessEntity()
-                    .then(chain.filter(exchange));
+                    .then(chain.filter(exchange))
+                    // Auth service rejected the token: answer 401 instead of a 500
+                    .onErrorResume(WebClientResponseException.class, ex -> {
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    });
         };
     }
 }
